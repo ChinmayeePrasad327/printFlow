@@ -1,0 +1,56 @@
+const express = require("express");
+
+const router = express.Router();
+
+const { requireAuth } =
+    require("@clerk/express");
+
+const allowRoles =
+    require("../middleware/roleMiddleware");
+
+const loadUser =
+    require("../middleware/loadUser");
+
+const {
+    createUser,
+    getUsers,
+    getUserById,
+    updateUser,
+    syncUser
+} = require("../controllers/userController");
+
+// =====================================
+// CLERK USER SYNC
+// =====================================
+
+router.post(
+    "/sync",
+    syncUser
+);
+
+// =====================================
+// ADMIN ROUTES
+// =====================================
+
+router.get(
+    "/",
+    requireAuth(),
+    allowRoles("admin"),
+    getUsers
+);
+
+router.get(
+    "/:id",
+    requireAuth(),
+    loadUser,
+    getUserById
+);
+
+router.patch(
+    "/:id",
+    requireAuth(),
+    loadUser,
+    updateUser
+);
+
+module.exports = router;
