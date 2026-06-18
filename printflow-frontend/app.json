@@ -1,20 +1,7 @@
-// {
-//   "plugins": [
-//     "expo-secure-store",
-//     "expo-router",
-//     "expo-web-browser"
-//   ],
-//   "extra": {
-//     "router": {},
-//     "eas": {
-//       "projectId": "6ab55358-803c-48bd-92b5-c9534b914729"
-//     }
-//   }
-// }
 {
   "expo": {
     "name": "PrintFlow",
-    "slug": "printflow",
+    "slug": "printflow-frontend",
     "scheme": "printflow",
     "plugins": [
       "expo-secure-store",
@@ -26,6 +13,9 @@
       "eas": {
         "projectId": "6ab55358-803c-48bd-92b5-c9534b914729"
       }
+    },
+    "android": {
+      "package": "com.chinmayeepulupula.printflow"
     }
   }
 }
