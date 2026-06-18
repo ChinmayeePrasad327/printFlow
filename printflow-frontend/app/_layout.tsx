@@ -8,6 +8,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, wit
 import { tokenCache } from "../utils/tokenCache";
 import { ThemeProvider, useTheme } from "../context/ThemeContext";
 import { AuthProvider, useAppAuth } from "../context/AuthContext";
+import { SocketProvider } from "../context/SocketContext";
 import { initPostHog } from "../utils/posthog";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
@@ -40,7 +41,13 @@ function NavigationGuard() {
         }
       } else {
         if (inAuthGroup || isProfileCompletion || !segments[0]) {
-          router.replace("/(tabs)/home");
+          if (dbUser?.role === "admin") {
+            router.replace("/(tabs)/admin-console");
+          } else if (dbUser?.role === "operator") {
+            router.replace("/(tabs)/orders");
+          } else {
+            router.replace("/(tabs)/home");
+          }
         }
       }
     } else {
@@ -133,6 +140,7 @@ export default function RootLayout() {
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <ThemeProvider>
         <AuthProvider>
+          <SocketProvider>
           <View style={{ flex: 1, backgroundColor: "#020617" }}>
             {isSplashActive ? (
               <Animated.View
@@ -235,6 +243,7 @@ export default function RootLayout() {
 
             <NavigationGuard />
           </View>
+          </SocketProvider>
         </AuthProvider>
       </ThemeProvider>
     </ClerkProvider>

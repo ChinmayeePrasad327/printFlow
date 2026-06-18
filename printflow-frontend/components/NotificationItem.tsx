@@ -1,7 +1,15 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { View, Text, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import { useTheme } from "../context/ThemeContext";
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export interface NotificationItemProps {
   title: string;
@@ -29,6 +37,19 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
   onPress,
 }) => {
   const { tw, colors } = useTheme();
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(0);
+  const translateX = useSharedValue(-12);
+
+  useEffect(() => {
+    opacity.value = withTiming(1, { duration: 240 });
+    translateX.value = withSpring(0, { damping: 18, stiffness: 180 });
+  }, [opacity, translateX]);
+
+  const animatedStyle = useAnimatedStyle<any>(() => ({
+    opacity: opacity.value,
+    transform: [{ translateX: translateX.value }, { scale: scale.value }],
+  }));
 
   // Pick icon name & badge color based on notification type
   let iconName: keyof typeof Feather.glyphMap = "info";
@@ -75,9 +96,15 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
   const itemBorder = read ? "border-border" : "border-emerald-500/20";
 
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
-      style={tw(`flex flex-row items-start p-4 border-b ${itemBorder} ${itemBg} w-full`)}
+      onPressIn={() => {
+        scale.value = withSpring(0.985, { damping: 16, stiffness: 260 });
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, { damping: 14, stiffness: 220 });
+      }}
+      style={[tw(`flex flex-row items-start p-4 border-b ${itemBorder} ${itemBg} w-full`), animatedStyle]}
       accessibilityRole="button"
     >
       <View style={tw(`h-10 w-10 rounded-full items-center justify-center mr-3 flex-shrink-0 ${iconBgColor}`)}>
@@ -102,6 +129,6 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
       {!read && (
         <View style={tw("h-2 w-2 rounded-full bg-emerald-500 align-self-center ml-1 flex-shrink-0")} />
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 };

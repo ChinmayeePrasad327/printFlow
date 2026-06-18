@@ -1,4 +1,4 @@
-const User = require("../models/User");
+const loadUser = require("./loadUser");
 
 const allowRoles = (...roles) => {
 
@@ -6,19 +6,7 @@ const allowRoles = (...roles) => {
 
         try {
 
-            const clerkId = req.auth.userId;
-
-            const user =
-                await User.findOne({
-                    clerkId
-                });
-
-            if (!user) {
-                return res.status(404).json({
-                    success: false,
-                    message: "User not found"
-                });
-            }
+            const user = req.user || await loadUser.findOrCreateUserFromAuth(req);
 
             if (!roles.includes(user.role)) {
 
@@ -35,7 +23,7 @@ const allowRoles = (...roles) => {
 
         } catch (error) {
 
-            res.status(500).json({
+            res.status(error.statusCode || 500).json({
                 success: false,
                 message: error.message
             });

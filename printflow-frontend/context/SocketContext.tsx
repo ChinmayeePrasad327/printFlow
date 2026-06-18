@@ -1,7 +1,15 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { useAuth, useUser } from "@clerk/clerk-expo";
-import { getNotifications, clearAllNotifications as clearAllNotificationsApi, markAllAsRead as markAllAsReadApi, markNotificationRead, NotificationData } from "../services/notificationService";
+import {
+  getNotifications,
+  clearAllNotifications as clearAllNotificationsApi,
+  markAllAsRead as markAllAsReadApi,
+  markNotificationRead,
+  NotificationData,
+} from "../services/notificationService";
+import { SOCKET_BASE_URL } from "../services/config";
+
 
 type SocketContextValue = {
   socket: Socket | null;
@@ -12,6 +20,7 @@ type SocketContextValue = {
   markAllRead: () => Promise<void>;
   clearAll: () => Promise<void>;
   markRead: (id: string) => Promise<void>;
+  simulateNotification: (eventName: string, payload?: any) => void;
 };
 
 const SocketContext = createContext<SocketContextValue>({
@@ -19,10 +28,11 @@ const SocketContext = createContext<SocketContextValue>({
   connected: false,
   notifications: [],
   unreadCount: 0,
-  refreshNotifications: async () => {},
-  markAllRead: async () => {},
-  clearAll: async () => {},
-  markRead: async () => {},
+  refreshNotifications: async () => { },
+  markAllRead: async () => { },
+  clearAll: async () => { },
+  markRead: async () => { },
+  simulateNotification: () => { },
 });
 
 const mapEventToNotification = (eventName: string, payload: any): NotificationData => {
@@ -46,8 +56,8 @@ const mapEventToNotification = (eventName: string, payload: any): NotificationDa
     case "order_created":
       return {
         ...base,
-        title: "Order Created",
-        message: `Order ${orderId} has been created successfully.`,
+        title: payload?.title || "Order Created",
+        message: payload?.message || `Order ${orderId} has been created successfully.`,
         type: "created",
       };
     case "order_accepted":
@@ -81,8 +91,8 @@ const mapEventToNotification = (eventName: string, payload: any): NotificationDa
     case "priority_requested":
       return {
         ...base,
-        title: "Priority Requested",
-        message: `Priority request submitted for order ${orderId}.`,
+        title: payload?.title || "Priority Requested",
+        message: payload?.message || `Priority request submitted for order ${orderId}.`,
         type: "priority_requested",
       };
     case "priority_approved":
@@ -119,15 +129,32 @@ const mapEventToNotification = (eventName: string, payload: any): NotificationDa
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isSignedIn, getToken } = useAuth();
   const { user } = useUser();
+  const userId = user?.id;
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connected, setConnected] = useState(false);
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const socketRef = useRef<Socket | null>(null);
+  const getTokenRef = useRef(getToken);
 
-  const refreshNotifications = async () => {
-    const list = await getNotifications();
-    setNotifications(list);
-  };
+  const refreshNotificationsCooldownRef = useRef<number>(0);
+
+  useEffect(() => {
+    getTokenRef.current = getToken;
+  }, [getToken]);
+
+  const refreshNotifications = useCallback(async (reason: string = "unknown") => {
+    const now = Date.now();
+    // Throttle to avoid hammering the API when network/socket reconnect fails
+    if (now - refreshNotificationsCooldownRef.current < 5000) return;
+    refreshNotificationsCooldownRef.current = now;
+
+    try {
+      const list = await getNotifications();
+      setNotifications(list);
+    } catch (e) {
+      console.warn(`refreshNotifications(${reason}) failed`, e);
+    }
+  }, []);
 
   const upsertNotification = (item: NotificationData) => {
     setNotifications((prev) => {
@@ -147,17 +174,30 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const markRead = async (id: string) => {
+    if (id.startsWith("sim_") || id.startsWith("local_")) {
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+      return;
+    }
+
     const updated = await markNotificationRead(id);
     if (updated) {
       setNotifications((prev) => prev.map((n) => (n.id === updated.id ? updated : n)));
     }
   };
 
+  const simulateNotification = (eventName: string, payload: any = {}) => {
+    const notification = mapEventToNotification(eventName, {
+      id: `sim_${eventName}_${Date.now()}`,
+      ...payload,
+    });
+    upsertNotification(notification);
+  };
+
   useEffect(() => {
     let mounted = true;
 
     const connect = async () => {
-      if (!isSignedIn || !user) {
+      if (!isSignedIn || !userId) {
         if (socketRef.current) {
           socketRef.current.disconnect();
           socketRef.current = null;
@@ -168,34 +208,64 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return;
       }
 
-      const token = await getToken();
-      const baseUrl = process.env.EXPO_PUBLIC_API_URL || "http://10.1.48.225:5000/api";
-      const socketUrl = baseUrl.replace(/\/api\/?$/, "");
+      if (!SOCKET_BASE_URL || typeof SOCKET_BASE_URL !== "string") {
+        console.warn("SOCKET_BASE_URL missing; skipping socket connection");
+        return;
+      }
+
+      const token = await getTokenRef.current().catch((e) => {
+        console.warn("getToken failed", e);
+        return null;
+      });
 
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
       }
 
-      const s = io(socketUrl, {
+      const s = io(SOCKET_BASE_URL, {
+
         transports: ["websocket"],
         reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000,
         auth: {
           token,
-          clerkUserId: user.id,
+          clerkUserId: userId,
         },
       });
+
 
       socketRef.current = s;
       setSocket(s);
 
-      s.on("connect", () => setConnected(true));
-      s.on("disconnect", () => setConnected(false));
+      s.on("connect", () => {
+        if (!mounted) return;
+        setConnected(true);
+      });
+      s.on("disconnect", () => {
+        if (!mounted) return;
+        setConnected(false);
+      });
+
+
+      s.on("unauthorized", (d: any) => {
+        console.warn("Socket unauthorized", d);
+        if (!mounted) return;
+        setConnected(false);
+      });
+
+
 
       const handleEvent = (eventName: string, payload: any) => {
-        const notification = mapEventToNotification(eventName, payload);
-        upsertNotification(notification);
+        try {
+          const notification = mapEventToNotification(eventName, payload);
+          upsertNotification(notification);
+        } catch (e) {
+          console.warn("Socket event handling failed", eventName, e);
+        }
       };
+
 
       const events = [
         "notification_created",
@@ -211,14 +281,29 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       ];
 
       events.forEach((eventName) => {
-        s.on(eventName, (payload) => handleEvent(eventName, payload));
+        s.on(eventName, (payload) => {
+          if (!mounted) return;
+          handleEvent(eventName, payload);
+        });
       });
+
 
       try {
         await refreshNotifications();
       } catch (e) {
         console.warn("Failed to load notifications", e);
       }
+
+
+      // Some backends emit a connected payload; never assume shape.
+      s.on("connected", (d: any) => {
+        try {
+          if (!d) return;
+        } catch {
+          // ignore
+        }
+      });
+
     };
 
     connect();
@@ -229,9 +314,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         socketRef.current.disconnect();
         socketRef.current = null;
       }
-      if (!mounted) return;
     };
-  }, [isSignedIn, user, getToken]);
+  }, [isSignedIn, userId, refreshNotifications]);
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
 
@@ -246,6 +330,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         markAllRead,
         clearAll,
         markRead,
+        simulateNotification,
       }}
     >
       {children}

@@ -9,6 +9,7 @@ export interface Order {
   fileUrl: string;
   totalPages: number;
   copies: number;
+  printSides: "single" | "double";
   status: "pending" | "accepted" | "printing" | "ready" | "collected" | "cancelled";
   priorityLevel: "normal" | "priority";
   priorityScore: number;

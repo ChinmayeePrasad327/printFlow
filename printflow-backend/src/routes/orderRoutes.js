@@ -15,6 +15,7 @@ const {
     getOrders,
     getOrderById,
     updateOrderStatus,
+    confirmCollection,
     cancelOrder,
     requestPriority,
     getPendingPriorityRequests,
@@ -40,30 +41,6 @@ router.get(
     requireAuth(),
     loadUser,
     getOrders
-);
-
-// Get Single Order
-router.get(
-    "/:id",
-    requireAuth(),
-    loadUser,
-    getOrderById
-);
-
-// Request Priority
-router.patch(
-    "/:id/request-priority",
-    requireAuth(),
-    loadUser,
-    requestPriority
-);
-
-// Cancel Order
-router.patch(
-    "/:id/cancel",
-    requireAuth(),
-    loadUser,
-    cancelOrder
 );
 
 // =====================================
@@ -112,6 +89,38 @@ router.patch(
         "admin"
     ),
     updateOrderStatus
+);
+
+// Confirm collection with user OTP
+router.patch(
+    "/:id/confirm-collection",
+    requireAuth(),
+    loadUser,
+    confirmCollection
+);
+
+// Get Single Order
+router.get(
+    "/:id",
+    requireAuth(),
+    loadUser,
+    getOrderById
+);
+
+// Request Priority
+router.patch(
+    "/:id/request-priority",
+    requireAuth(),
+    loadUser,
+    requestPriority
+);
+
+// Cancel Order
+router.patch(
+    "/:id/cancel",
+    requireAuth(),
+    loadUser,
+    cancelOrder
 );
 
 module.exports = router;

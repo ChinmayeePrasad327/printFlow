@@ -1,15 +1,48 @@
 ﻿const User = require('../models/User');
 
 let ioInstance = null;
-const userSockets = new Map(); // clerkId -> Set(socketId)
-const socketToUser = new Map(); // socketId -> clerkId
+const userSockets = new Map(); // user room key -> Set(socketId)
+const socketToUser = new Map(); // socketId -> user room keys
+
+const ROLE_NOTIFICATION_CATEGORIES = {
+  admin: ["orders", "priority", "printers", "users", "system"],
+  operator: ["orders", "priority", "printers", "system"],
+  student: ["orders", "priority", "system"],
+  faculty: ["orders", "priority", "system"]
+};
+
+const normalizeList = (value) => {
+  if (!value) return [];
+  return Array.isArray(value) ? value.filter(Boolean) : [value];
+};
+
+const notificationRoleRoom = (role) => `notifications:role:${role}`;
+const notificationCategoryRoom = (category) => `notifications:category:${category}`;
+const notificationRoleCategoryRoom = (role, category) => `notifications:role:${role}:category:${category}`;
+const printerRoom = (printerId) => `notifications:printer:${printerId}`;
 
 // Try to load Clerk server SDK if available
-let clerkClient = null;
+let clerkSdk = null;
 try {
-  clerkClient = require('@clerk/clerk-sdk-node');
+  clerkSdk = require('@clerk/clerk-sdk-node');
 } catch (e) {
   console.warn('clerk sdk not installed, socket auth will be best-effort');
+}
+
+async function verifySocketToken(token) {
+  if (!token || !clerkSdk?.verifyToken) return null;
+
+  try {
+    const verified = await clerkSdk.verifyToken(token, {
+      secretKey: process.env.CLERK_SECRET_KEY,
+      jwtKey: process.env.CLERK_JWT_KEY
+    });
+
+    return verified?.sub || verified?.subject || null;
+  } catch (err) {
+    console.warn('Clerk socket token verify failed', err.message || err);
+    return null;
+  }
 }
 
 function _safeJoinRoom(socket, room) {
@@ -22,23 +55,8 @@ async function handleConnection(socket) {
     const token = auth.token;
     const clerkUserId = auth.clerkUserId || auth.clerkId || null;
 
-    let clerkId = clerkUserId;
-
-    // Verify session token if clerk SDK is available
-    if (token && clerkClient && clerkClient.sessions) {
-      try {
-        // Some versions expose verifySessionToken, others use getSession
-        if (typeof clerkClient.sessions.verifySessionToken === 'function') {
-          const v = await clerkClient.sessions.verifySessionToken(token);
-          if (v && v.subject) clerkId = v.subject;
-        } else if (typeof clerkClient.sessions.getSession === 'function') {
-          const session = await clerkClient.sessions.getSession({ sessionToken: token });
-          if (session && session.userId) clerkId = session.userId;
-        }
-      } catch (err) {
-        console.warn('Clerk session verify failed', err.message || err);
-      }
-    }
+    const verifiedClerkId = await verifySocketToken(token);
+    const clerkId = verifiedClerkId || (!token ? clerkUserId : null);
 
     if (!clerkId) {
       // Disconnect unauthenticated sockets
@@ -46,41 +64,60 @@ async function handleConnection(socket) {
       return socket.disconnect(true);
     }
 
-    // Record mapping
-    socketToUser.set(socket.id, clerkId);
-    if (!userSockets.has(clerkId)) userSockets.set(clerkId, new Set());
-    userSockets.get(clerkId).add(socket.id);
-
-    // Join user private room
+    const roomKeys = new Set([clerkId]);
     _safeJoinRoom(socket, `user:${clerkId}`);
 
     // Lookup user role from DB (best-effort)
     let role = null;
     try {
-      const user = await User.findOne({ clerkId });
+      const user = await User.findOne({ clerkId }).populate('assignedPrinters');
       role = user ? user.role : null;
+      if (user && user._id) {
+        const dbUserId = user._id.toString();
+        roomKeys.add(dbUserId);
+        _safeJoinRoom(socket, `user:${dbUserId}`);
+
+        const assignedPrinterIds = (user.assignedPrinters || []).map((printer) =>
+          (printer._id || printer).toString()
+        );
+        assignedPrinterIds.forEach((printerId) => _safeJoinRoom(socket, printerRoom(printerId)));
+      }
     } catch (err) {
       console.warn('user lookup failed during socket connect', err.message || err);
     }
 
+    socketToUser.set(socket.id, Array.from(roomKeys));
+    roomKeys.forEach((key) => {
+      if (!userSockets.has(key)) userSockets.set(key, new Set());
+      userSockets.get(key).add(socket.id);
+    });
+
     if (role) {
       _safeJoinRoom(socket, `role:${role}`);
+      _safeJoinRoom(socket, notificationRoleRoom(role));
+      (ROLE_NOTIFICATION_CATEGORIES[role] || ["system"]).forEach((category) => {
+        _safeJoinRoom(socket, notificationCategoryRoom(category));
+        _safeJoinRoom(socket, notificationRoleCategoryRoom(role, category));
+      });
     }
 
     socket.emit('connected', { clerkId, role });
 
     socket.on('join_user_room', () => {
       _safeJoinRoom(socket, `user:${clerkId}`);
+      roomKeys.forEach((key) => _safeJoinRoom(socket, `user:${key}`));
     });
 
     socket.on('disconnect', () => {
-      const u = socketToUser.get(socket.id);
-      if (u) {
-        const set = userSockets.get(u);
-        if (set) {
-          set.delete(socket.id);
-          if (set.size === 0) userSockets.delete(u);
-        }
+      const keys = socketToUser.get(socket.id);
+      if (keys) {
+        keys.forEach((key) => {
+          const set = userSockets.get(key);
+          if (set) {
+            set.delete(socket.id);
+            if (set.size === 0) userSockets.delete(key);
+          }
+        });
         socketToUser.delete(socket.id);
       }
     });
@@ -107,9 +144,50 @@ function emitToRole(role, event, payload) {
   try { ioInstance.to(`role:${role}`).emit(event, payload); } catch (e) { console.warn('emitToRole failed', e.message || e); }
 }
 
+function emitToAll(event, payload) {
+  if (!ioInstance) return;
+  try { ioInstance.emit(event, payload); } catch (e) { console.warn('emitToAll failed', e.message || e); }
+}
+
+function emitNotification({ userIds = [], roles = [], category = 'system', printerIds = [], event = 'notification_created', payload = {} }) {
+  if (!ioInstance) return;
+
+  try {
+    const target = ioInstance;
+    const rooms = new Set();
+
+    normalizeList(userIds).forEach((userId) => rooms.add(`user:${userId}`));
+    normalizeList(roles).forEach((role) => {
+      rooms.add(notificationRoleRoom(role));
+      rooms.add(notificationRoleCategoryRoom(role, category));
+    });
+    normalizeList(printerIds).forEach((printerId) => rooms.add(printerRoom(printerId)));
+
+    if (rooms.size === 0) return;
+
+    let roomTarget = target;
+    rooms.forEach((room) => {
+      roomTarget = roomTarget.to(room);
+    });
+
+    roomTarget.emit(event, {
+      ...payload,
+      meta: {
+        ...(payload.meta || {}),
+        category
+      }
+    });
+  } catch (e) {
+    console.warn('emitNotification failed', e.message || e);
+  }
+}
+
 module.exports = {
   init,
   emitToUser,
   emitToRole,
+  emitToAll,
+  emitNotification,
+  ROLE_NOTIFICATION_CATEGORIES,
   _internal: { userSockets, socketToUser }
 };

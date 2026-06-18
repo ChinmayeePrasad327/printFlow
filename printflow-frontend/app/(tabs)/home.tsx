@@ -146,9 +146,8 @@ export default function Home() {
         {/* -------------------- ROLE BASED STATS & WIDGETS -------------------- */}
         
         {/* Student View */}
-        {(dbUser?.role === "student" || !dbUser) && (
-          <>
-            {/* Quick Stats Grid */}
+        <>
+          {/* Quick Stats Grid */}
             <View style={tw("flex-row gap-4 mb-6 w-full justify-between")}>
               <View style={tw("flex-1 bg-card rounded-2xl border border-border p-4 shadow-sm")}>
                 <Text style={tw("text-[10px] font-inter-semibold text-secondary uppercase tracking-wider")}>
@@ -286,94 +285,7 @@ export default function Home() {
                 ))}
               </View>
             )}
-          </>
-        )}
-
-        {/* Operator Dashboard */}
-        {dbUser?.role === "operator" && (
-          <View style={tw("gap-6")}>
-            {/* Operator Stats */}
-            <View style={tw("flex-row gap-4 w-full justify-between")}>
-              <View style={tw("flex-1 bg-card rounded-2xl border border-border p-4 shadow-sm")}>
-                <Text style={tw("text-[10px] font-inter-semibold text-secondary uppercase tracking-wider")}>
-                  Jobs Waiting
-                </Text>
-                <Text style={tw("text-2xl font-space-bold text-primary mt-1")}>{stats.pending}</Text>
-              </View>
-
-              <View style={tw("flex-1 bg-card rounded-2xl border border-border p-4 shadow-sm")}>
-                <Text style={tw("text-[10px] font-inter-semibold text-secondary uppercase tracking-wider")}>
-                  Active Prints
-                </Text>
-                <Text style={tw("text-2xl font-space-bold text-purple-500 mt-1")}>
-                  {stats.active - stats.pending > 0 ? stats.active - stats.pending : 1}
-                </Text>
-              </View>
-            </View>
-
-            {/* Operator shortcuts */}
-            <AppCard style={tw("p-5")}>
-              <Text style={tw("text-base font-space-bold text-primary mb-4")}>
-                Operator Control Panel
-              </Text>
-              <AppButton
-                title="Manage Printer Queue"
-                onPress={() => router.push("/orders")}
-                variant="primary"
-                style={tw("mb-3")}
-              />
-              <AppButton
-                title="View Priority Requests"
-                onPress={() => router.push("/orders")}
-                variant="outline"
-              />
-            </AppCard>
-          </View>
-        )}
-
-        {/* Admin Dashboard */}
-        {dbUser?.role === "admin" && (
-          <View style={tw("gap-6")}>
-            <View style={tw("flex-row gap-4 w-full justify-between")}>
-              <View style={tw("flex-1 bg-card rounded-2xl border border-border p-4 shadow-sm")}>
-                <Text style={tw("text-[10px] font-inter-semibold text-secondary uppercase tracking-wider")}>
-                  Active Printers
-                </Text>
-                <Text style={tw("text-2xl font-space-bold text-emerald-500 mt-1")}>5</Text>
-              </View>
-
-              <View style={tw("flex-1 bg-card rounded-2xl border border-border p-4 shadow-sm")}>
-                <Text style={tw("text-[10px] font-inter-semibold text-secondary uppercase tracking-wider")}>
-                  Queue Load
-                </Text>
-                <Text style={tw("text-2xl font-space-bold text-primary mt-1")}>Medium</Text>
-              </View>
-            </View>
-
-            <AppCard>
-              <Text style={tw("text-base font-space-bold text-primary mb-4")}>
-                Admin Console
-              </Text>
-              <AppButton
-                title="System Analytics"
-                onPress={() => router.push("/analytics")}
-                variant="primary"
-                style={tw("mb-3")}
-              />
-              <AppButton
-                title="Printer Management"
-                onPress={() => router.push("/orders")}
-                variant="secondary"
-                style={tw("mb-3")}
-              />
-              <AppButton
-                title="User Management"
-                onPress={() => router.push("/profile")}
-                variant="outline"
-              />
-            </AppCard>
-          </View>
-        )}
+        </>
       </ScrollView>
     </View>
   );

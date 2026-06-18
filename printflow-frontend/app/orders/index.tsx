@@ -1,20 +1,5 @@
-import {
-    View,
-    Text
-} from "react-native";
+import { Redirect } from "expo-router";
 
-export default function Orders() {
-
-    return (
-
-        <View>
-
-            <Text>
-                Orders Screen
-            </Text>
-
-        </View>
-
-    );
-
+export default function OrdersIndex() {
+  return <Redirect href="/(tabs)/orders" />;
 }

@@ -1,7 +1,9 @@
 const User = require("../models/User");
+const Printer = require("../models/Printer");
 const isAllowedEmail =
     require("../utils/domainValidator");
 const Audit = require("../models/Audit");
+const { getClerkUserId } = require("../utils/getClerkAuth");
 
 const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL;
 
@@ -34,7 +36,7 @@ const createUser = async (req, res) => {
 const getUsers = async (req, res) => {
     try {
 
-        const users = await User.find();
+        const users = await User.find().populate("assignedPrinters");
 
         res.status(200).json({
             success: true,
@@ -65,6 +67,17 @@ const getUserById = async (req, res) => {
             });
         }
 
+        const requester = req.user || await User.findOne({ clerkId: getClerkUserId(req) });
+        const isSelf = requester && requester._id.toString() === user._id.toString();
+        const isAdmin = requester?.role === "admin";
+
+        if (!isSelf && !isAdmin) {
+            return res.status(403).json({
+                success: false,
+                message: "Access denied"
+            });
+        }
+
         res.status(200).json({
             success: true,
             data: user
@@ -85,7 +98,7 @@ const getUserById = async (req, res) => {
 const updateUser = async (req, res) => {
     try {
         // requester
-        const requesterClerkId = req.auth.userId;
+        const requesterClerkId = getClerkUserId(req);
         const requester = await User.findOne({ clerkId: requesterClerkId });
 
         // target user
@@ -94,8 +107,15 @@ const updateUser = async (req, res) => {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
+        const isSelf = requester && requester._id.toString() === targetUser._id.toString();
+        const isAdmin = requester?.role === 'admin';
+
+        if (!isSelf && !isAdmin) {
+            return res.status(403).json({ success: false, message: 'Access denied' });
+        }
+
         // If body contains role change, only admin can perform this via the admin role endpoint
-        if (req.body.role && (!requester || requester.role !== 'admin')) {
+        if (req.body.role && !isAdmin) {
             return res.status(403).json({ success: false, message: 'Only admin can change roles' });
         }
 
@@ -149,11 +169,15 @@ const changeUserRole = async (req, res) => {
         const previousRole = user.role;
 
         user.role = role;
+        if (role !== "operator") {
+            user.assignedPrinters = [];
+            await Printer.updateMany({ operatorId: user._id }, { $unset: { operatorId: "" } });
+        }
         await user.save();
 
         // Audit
         try {
-            const requesterClerkId = req.auth.userId;
+            const requesterClerkId = getClerkUserId(req);
             const performer = await User.findOne({ clerkId: requesterClerkId });
             await Audit.create({
                 action: 'change_role',
@@ -174,12 +198,37 @@ const changeUserRole = async (req, res) => {
     }
 };
 
+// Admin-only: assign printers to an operator
+const updateAssignedPrinters = async (req, res) => {
+    try {
+        const { printerIds = [] } = req.body;
+        const user = await User.findById(req.params.id);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        if (user.role !== 'operator') {
+            return res.status(400).json({ success: false, message: 'Only operators can be assigned printers' });
+        }
+
+        user.assignedPrinters = printerIds;
+        await user.save();
+        await Printer.updateMany({ operatorId: user._id }, { $unset: { operatorId: "" } });
+        if (printerIds.length > 0) {
+            await Printer.updateMany({ _id: { $in: printerIds } }, { $set: { operatorId: user._id } });
+        }
+
+        res.status(200).json({ success: true, data: user });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 // Clerk User Sync
 const syncUser = async (req, res) => {
     try {
-        const clerkId =
-            (req.auth && req.auth.userId) ||
-            req.body.clerkId;
+        const clerkId = getClerkUserId(req);
         if (!clerkId) {
             return res.status(401).json({
                 success: false,
@@ -293,5 +342,6 @@ module.exports = {
     getUserById,
     updateUser,
     syncUser,
-    changeUserRole
+    changeUserRole,
+    updateAssignedPrinters
 };

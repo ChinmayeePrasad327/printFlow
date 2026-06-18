@@ -10,6 +10,8 @@ const {
 
 const loadUser =
     require("../middleware/loadUser");
+const { getClerkUserId } =
+    require("../utils/getClerkAuth");
 
 const {
     getMyStats,
@@ -37,7 +39,7 @@ router.get(
         res.json({
             success: true,
             clerkId:
-                req.auth.userId
+                getClerkUserId(req)
         });
 
     }

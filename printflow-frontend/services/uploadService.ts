@@ -8,10 +8,7 @@ export const uploadFile =
                 "/upload",
                 formData,
                 {
-                    headers: {
-                        "Content-Type":
-                            "multipart/form-data"
-                    }
+                    timeout: 60000,
                 }
             );
 

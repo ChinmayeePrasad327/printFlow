@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useAuth, useUser } from "@clerk/clerk-expo";
+import { useUser } from "@clerk/clerk-expo";
 
 import {
     syncUser
@@ -8,7 +8,6 @@ import {
 export const useUserSync =
     () => {
 
-        const { getToken } = useAuth();
         const { user } =
             useUser();
 
@@ -18,14 +17,13 @@ export const useUserSync =
                 return;
 
             (async () => {
-                const token = await getToken();
                 await syncUser({
                     clerkId: user.id,
                     email: user.primaryEmailAddress?.emailAddress || "",
                     name: user.fullName || "User"
-                }, token);
+                });
             })();
 
-        }, [user, getToken]);
+        }, [user]);
 
     };

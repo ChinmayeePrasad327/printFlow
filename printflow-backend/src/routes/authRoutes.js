@@ -1,5 +1,6 @@
 const express = require("express");
 const { requireAuth } = require("@clerk/express");
+const { getClerkUserId } = require("../utils/getClerkAuth");
 
 const router = express.Router();
 
@@ -10,7 +11,7 @@ router.get(
 
         res.status(200).json({
             success: true,
-            clerkId: req.auth.userId
+            clerkId: getClerkUserId(req)
         });
 
     }

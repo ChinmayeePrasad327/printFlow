@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useAuth, useUser } from "@clerk/clerk-expo";
-import { syncUser, SyncUserData } from "../services/userService";
+import { syncUser } from "../services/userService";
 import { setTokenFetcher } from "../services/api";
 import { identifyUser, resetUser, trackEvent } from "../utils/posthog";
 
@@ -29,15 +29,26 @@ const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isSignedIn, getToken } = useAuth();
   const { user } = useUser();
+  const getTokenRef = useRef(getToken);
+  const userId = user?.id;
+  const email =
+    user?.primaryEmailAddress?.emailAddress ||
+    user?.emailAddresses?.[0]?.emailAddress ||
+    "";
+  const name = user?.fullName || user?.username || user?.firstName || "User";
   const [dbUser, setDbUser] = useState<DBUser | null>(null);
   const [isLoadingDbUser, setIsLoadingDbUser] = useState<boolean>(true);
+
+  useEffect(() => {
+    getTokenRef.current = getToken;
+  }, [getToken]);
 
   // Set the token fetcher in our api service
   useEffect(() => {
     if (isSignedIn) {
       setTokenFetcher(async () => {
         try {
-          return await getToken();
+          return await getTokenRef.current();
         } catch (e) {
           console.error("AuthContext: Failed to fetch token", e);
           return null;
@@ -49,10 +60,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoadingDbUser(false);
       resetUser();
     }
-  }, [isSignedIn, getToken]);
+  }, [isSignedIn]);
 
-  const performSync = async () => {
-    if (!isSignedIn || !user) {
+  const performSync = useCallback(async () => {
+    if (!isSignedIn || !userId) {
       setDbUser(null);
       setIsLoadingDbUser(false);
       return;
@@ -60,18 +71,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       setIsLoadingDbUser(true);
-      const token = await getToken();
-      const email =
-        user.primaryEmailAddress?.emailAddress ||
-        user.emailAddresses?.[0]?.emailAddress ||
-        "";
-      const name = user.fullName || user.username || user.firstName || "User";
-      
+
       const response = await syncUser({
-        clerkId: user.id,
+        clerkId: userId,
         email,
         name,
-      }, token);
+      });
 
       if (response && response.success && response.data) {
         const userData: DBUser = response.data;
@@ -89,32 +94,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoadingDbUser(false);
     }
-  };
+  }, [email, isSignedIn, name, userId]);
 
   useEffect(() => {
-    if (isSignedIn && user) {
+    if (isSignedIn && userId) {
       performSync();
     }
-  }, [isSignedIn, user]);
+  }, [isSignedIn, performSync, userId]);
 
   const syncProfile = async (rollNo: string, department: string) => {
-    if (!isSignedIn || !user) return;
+    if (!isSignedIn || !userId) return;
     try {
       setIsLoadingDbUser(true);
-      const token = await getToken();
-      const email =
-        user.primaryEmailAddress?.emailAddress ||
-        user.emailAddresses?.[0]?.emailAddress ||
-        "";
-      const name = user.fullName || user.username || user.firstName || "User";
 
       const response = await syncUser({
-        clerkId: user.id,
+        clerkId: userId,
         email,
         name,
         rollNo,
         department,
-      }, token);
+      });
 
       if (response && response.success && response.data) {
         const userData: DBUser = response.data;
@@ -127,6 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (e) {
       console.error("AuthContext: failed to complete profile", e);
+      throw e;
     } finally {
       setIsLoadingDbUser(false);
     }

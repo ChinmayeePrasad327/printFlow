@@ -4,6 +4,14 @@ const cloudinary =
 const streamifier =
     require("streamifier");
 
+const sanitizePdfName = (name = "document.pdf") => {
+    const baseName = name.replace(/\.pdf$/i, "") || "document";
+    return baseName
+        .replace(/[^a-zA-Z0-9-_]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 80) || "document";
+};
+
 const uploadFile =
     async (req, res) => {
 
@@ -14,7 +22,7 @@ const uploadFile =
                 return res.status(400).json({
                     success: false,
                     message:
-                        "No file uploaded"
+                        "No file uploaded. Send the PDF as multipart/form-data using the field name \"file\"."
                 });
 
             }
@@ -24,7 +32,8 @@ const uploadFile =
 
                     {
                         folder: "printflow",
-                        resource_type: "raw"
+                        resource_type: "raw",
+                        public_id: `${Date.now()}-${sanitizePdfName(req.file.originalname)}.pdf`
                     },
 
                     (error, result) => {

@@ -1,7 +1,9 @@
-import axios from "axios";
+import axios, { AxiosHeaders } from "axios";
+import { API_BASE_URL } from "./config";
 
 export const api = axios.create({
-    baseURL: process.env.EXPO_PUBLIC_API_URL || 'http://10.1.48.225:5000/api',
+    baseURL: API_BASE_URL,
+    timeout: 8000,
 });
 
 let tokenFetcher: (() => Promise<string | null>) | null = null;
@@ -16,7 +18,7 @@ api.interceptors.request.use(
             try {
                 const token = await tokenFetcher();
                 if (token) {
-                    config.headers = config.headers || {};
+                    config.headers = AxiosHeaders.from(config.headers);
                     config.headers.Authorization = `Bearer ${token}`;
                 }
             } catch (error) {

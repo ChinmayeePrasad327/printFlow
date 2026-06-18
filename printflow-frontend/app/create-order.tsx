@@ -9,6 +9,7 @@ import { AppHeader } from "../components/AppHeader";
 import { AppCard } from "../components/AppCard";
 import { AppButton } from "../components/AppButton";
 import { AppInput } from "../components/AppInput";
+import { useAppAuth } from "../context/AuthContext";
 import { getPrinters } from "../services/printerService";
 import { uploadFile } from "../services/uploadService";
 import { createOrder } from "../services/orderService";
@@ -26,6 +27,7 @@ interface Printer {
 
 export default function CreateOrder() {
   const { tw, colors } = useTheme();
+  const { dbUser } = useAppAuth();
   const router = useRouter();
 
   // Document states
@@ -38,7 +40,9 @@ export default function CreateOrder() {
   const [selectedPrinterId, setSelectedPrinterId] = useState("");
   const [totalPages, setTotalPages] = useState("");
   const [copies, setCopies] = useState("1");
+  const [printSides, setPrintSides] = useState<"single" | "double">("single");
   const [priority, setPriority] = useState(false);
+  const [priorityReason, setPriorityReason] = useState("");
   const [confidential, setConfidential] = useState(false);
 
   // UI state
@@ -52,6 +56,11 @@ export default function CreateOrder() {
 
   // Fetch printers on mount
   useEffect(() => {
+    if (dbUser?.role === "operator" || dbUser?.role === "admin") {
+      router.replace("/(tabs)/orders");
+      return;
+    }
+
     const fetchPrinters = async () => {
       try {
         const response = await getPrinters();
@@ -72,7 +81,7 @@ export default function CreateOrder() {
     };
     fetchPrinters();
     trackEvent("screen_viewed", { screenName: "create_order" });
-  }, []);
+  }, [dbUser?.role]);
 
   const loadMockPrinters = () => {
     const mock = [
@@ -115,13 +124,16 @@ export default function CreateOrder() {
         setUploadState("uploading");
         trackEvent("pdf_upload_started", { fileName: file.name });
 
-        // Build FormData
         const formData = new FormData();
-        formData.append("file", {
-          uri: file.uri,
-          name: file.name,
-          type: file.mimeType || "application/pdf",
-        } as any);
+        if (Platform.OS === "web" && file.file) {
+          formData.append("file", file.file, file.name);
+        } else {
+          formData.append("file", {
+            uri: file.uri,
+            name: file.name,
+            type: file.mimeType || "application/pdf",
+          } as any);
+        }
 
         const uploadResponse = await uploadFile(formData);
         
@@ -138,8 +150,9 @@ export default function CreateOrder() {
     } catch (e: any) {
       console.error(e);
       setUploadState("failed");
-      setFormError("Failed to select or upload file.");
-      trackEvent("pdf_upload_failed", { error: e.message });
+      const message = e.response?.data?.message || "Failed to select or upload file.";
+      setFormError(message);
+      trackEvent("pdf_upload_failed", { error: message });
     }
   };
 
@@ -164,6 +177,10 @@ export default function CreateOrder() {
       setFormError("Please enter a valid number of copies.");
       return;
     }
+    if (priority && !priorityReason.trim()) {
+      setFormError("Please describe why this print job needs emergency priority.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -173,7 +190,9 @@ export default function CreateOrder() {
         fileUrl,
         totalPages: pagesCount,
         copies: copiesCount,
+        printSides,
         priorityLevel: priority ? "priority" : "normal",
+        priorityReason: priority ? priorityReason.trim() : "",
         confidential,
       };
 
@@ -184,7 +203,9 @@ export default function CreateOrder() {
           printerName: selectedPrinter?.name,
           totalPages: pagesCount,
           copies: copiesCount,
+          printSides,
           priorityLevel: priority ? "priority" : "normal",
+          priorityReason: priority ? priorityReason.trim() : undefined,
           confidential,
           estimatedCost: calculatedCost,
         });
@@ -365,6 +386,56 @@ export default function CreateOrder() {
             </View>
           </View>
 
+          <View style={tw("py-3 border-b border-border")}>
+            <Text style={tw("text-sm font-inter-semibold text-primary font-bold mb-2")}>
+              Print Sides
+            </Text>
+            <View style={tw("flex-row gap-2")}>
+              <Pressable
+                onPress={() => setPrintSides("single")}
+                style={tw(
+                  `flex-1 rounded-xl border px-3 py-3 items-center ${
+                    printSides === "single"
+                      ? "bg-emerald-500 border-emerald-500"
+                      : "bg-card border-border"
+                  }`
+                )}
+                accessibilityRole="button"
+              >
+                <Text
+                  style={tw(
+                    `text-xs font-inter-semibold font-bold text-center ${
+                      printSides === "single" ? "text-white" : "text-primary"
+                    }`
+                  )}
+                >
+                  One-sided
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setPrintSides("double")}
+                style={tw(
+                  `flex-1 rounded-xl border px-3 py-3 items-center ${
+                    printSides === "double"
+                      ? "bg-emerald-500 border-emerald-500"
+                      : "bg-card border-border"
+                  }`
+                )}
+                accessibilityRole="button"
+              >
+                <Text
+                  style={tw(
+                    `text-xs font-inter-semibold font-bold text-center ${
+                      printSides === "double" ? "text-white" : "text-primary"
+                    }`
+                  )}
+                >
+                  Double-sided
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+
           {/* Priority switch */}
           <View style={tw("flex flex-row items-center justify-between py-3 border-b border-border")}>
             <View style={tw("flex-1 mr-2")}>
@@ -382,6 +453,18 @@ export default function CreateOrder() {
               thumbColor={Platform.OS === "android" ? "#FFFFFF" : ""}
             />
           </View>
+
+          {priority && (
+            <View style={tw("mt-4")}>
+              <AppInput
+                label="Emergency Reason"
+                value={priorityReason}
+                onChangeText={setPriorityReason}
+                placeholder="e.g. exam hall ticket, urgent submission, medical document"
+                autoCapitalize="sentences"
+              />
+            </View>
+          )}
 
           {/* Confidential switch */}
           <View style={tw("flex flex-row items-center justify-between py-3")}>
@@ -414,6 +497,12 @@ export default function CreateOrder() {
           <View style={tw("flex flex-row justify-between mb-2")}>
             <Text style={tw("text-sm font-inter text-secondary")}>Number of copies</Text>
             <Text style={tw("text-sm font-inter text-primary")}>{copies || "1"} copies</Text>
+          </View>
+          <View style={tw("flex flex-row justify-between mb-2")}>
+            <Text style={tw("text-sm font-inter text-secondary")}>Print sides</Text>
+            <Text style={tw("text-sm font-inter text-primary")}>
+              {printSides === "double" ? "Double-sided" : "One-sided"}
+            </Text>
           </View>
           <View style={tw("flex flex-row justify-between mb-2")}>
             <Text style={tw("text-sm font-inter text-secondary")}>Printer Type</Text>

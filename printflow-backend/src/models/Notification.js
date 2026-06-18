@@ -19,6 +19,40 @@ const notificationSchema =
             required: true
         },
 
+        type: {
+            type: String,
+            default: "created"
+        },
+
+        category: {
+            type: String,
+            enum: [
+                "orders",
+                "priority",
+                "printers",
+                "users",
+                "system"
+            ],
+            default: "system"
+        },
+
+        targetRole: {
+            type: String,
+            enum: [
+                "student",
+                "faculty",
+                "operator",
+                "admin",
+                "all"
+            ],
+            default: "all"
+        },
+
+        meta: {
+            type: Object,
+            default: {}
+        },
+
         isRead: {
             type: Boolean,
             default: false

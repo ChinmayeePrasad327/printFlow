@@ -34,6 +34,15 @@ const orderSchema = new mongoose.Schema(
             default: 1
         },
 
+        printSides: {
+            type: String,
+            enum: [
+                "single",
+                "double"
+            ],
+            default: "single"
+        },
+
         status: {
             type: String,
             enum: [
@@ -60,6 +69,22 @@ const orderSchema = new mongoose.Schema(
         },
 
         collectedAt: {
+            type: Date
+        },
+
+        collectionOtp: {
+            type: String,
+            default: null,
+            select: false
+        },
+
+        collectionOtpExpiresAt: {
+            type: Date,
+            default: null,
+            select: false
+        },
+
+        collectionRequestedAt: {
             type: Date
         },
 

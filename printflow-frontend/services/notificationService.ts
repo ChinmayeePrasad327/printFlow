@@ -68,6 +68,19 @@ export const clearAllNotifications = async (): Promise<void> => {
   }
 };
 
+export const broadcastNotification = async (
+  title: string,
+  message: string,
+  meta: Record<string, any> = {}
+) => {
+  const response = await api.post("/notifications/broadcast", {
+    title,
+    message,
+    meta,
+  });
+  return response.data;
+};
+
 export const addNotification = async (
   title: string,
   message: string,

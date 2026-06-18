@@ -100,9 +100,15 @@ export default function Analytics() {
   };
 
   const fetchAnalyticsData = async () => {
+    if (dbUser?.role === "operator") {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      if (dbUser?.role === "admin" || dbUser?.role === "operator") {
+      if (dbUser?.role === "admin") {
         const response = await getAdminDashboard();
         if (response && response.success && response.data) {
           setAdminStats(response.data);
@@ -135,7 +141,7 @@ export default function Analytics() {
       }
     } catch (e) {
       console.warn("Failed to fetch analytics, loading mock data (Demo Mode)", e);
-      if (dbUser?.role === "admin" || dbUser?.role === "operator") {
+      if (dbUser?.role === "admin") {
         loadMockAdminData();
       } else {
         loadMockStudentData();
@@ -147,6 +153,10 @@ export default function Analytics() {
   };
 
   useEffect(() => {
+    if (dbUser?.role === "operator") {
+      setLoading(false);
+      return;
+    }
     fetchAnalyticsData();
     trackEvent("analytics_opened", { role: dbUser?.role });
   }, [dbUser]);
@@ -155,6 +165,20 @@ export default function Analytics() {
     setRefreshing(true);
     fetchAnalyticsData();
   };
+
+  if (dbUser?.role === "operator") {
+    return (
+      <View style={tw("flex-1 bg-background")}>
+        <AppHeader title="Analytics Insights" />
+        <View style={tw("flex-1 items-center justify-center px-8")}>
+          <Feather name="lock" size={28} color={colors.textSecondary} />
+          <Text style={tw("text-sm font-inter text-secondary text-center mt-3")}>
+            Analytics are available to admins and regular users only.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   const isStudent = dbUser?.role === "student" || !dbUser;
 

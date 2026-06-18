@@ -24,8 +24,7 @@ router.get(
     "/dashboard",
     requireAuth(),
     allowRoles(
-        "admin",
-        "operator"
+        "admin"
     ),
     getDashboardStats
 );
@@ -34,8 +33,7 @@ router.get(
     "/printers",
     requireAuth(),
     allowRoles(
-        "admin",
-        "operator"
+        "admin"
     ),
     getPrinterStats
 );
@@ -44,8 +42,7 @@ router.get(
     "/monthly-trends",
     requireAuth(),
     allowRoles(
-        "admin",
-        "operator"
+        "admin"
     ),
     getMonthlyTrends
 );
@@ -54,8 +51,7 @@ router.get(
     "/top-users",
     requireAuth(),
     allowRoles(
-        "admin",
-        "operator"
+        "admin"
     ),
     getTopUsers
 );
