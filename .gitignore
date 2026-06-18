@@ -16,3 +16,9 @@ uploads/
 *.log
 
 printflow-backend/mongo cred
+backup-old/
+
+app.txt
+components.txt
+frontend.txt
+structure.txt
