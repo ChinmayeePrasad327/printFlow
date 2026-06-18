@@ -1,7 +1,31 @@
+// {
+//   "plugins": [
+//     "expo-secure-store",
+//     "expo-router",
+//     "expo-web-browser"
+//   ],
+//   "extra": {
+//     "router": {},
+//     "eas": {
+//       "projectId": "6ab55358-803c-48bd-92b5-c9534b914729"
+//     }
+//   }
+// }
 {
-  "plugins": [
-    "expo-secure-store",
-    "expo-router",
-    "expo-web-browser"
-  ]
+  "expo": {
+    "name": "PrintFlow",
+    "slug": "printflow",
+    "scheme": "printflow",
+    "plugins": [
+      "expo-secure-store",
+      "expo-router",
+      "expo-web-browser"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6ab55358-803c-48bd-92b5-c9534b914729"
+      }
+    }
+  }
 }
