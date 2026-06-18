@@ -3,6 +3,7 @@
     "name": "PrintFlow",
     "slug": "printflow-frontend",
     "scheme": "printflow",
+    "version": "1.0.1",
     "plugins": [
       "expo-secure-store",
       "expo-router",
@@ -15,7 +16,8 @@
       }
     },
     "android": {
-      "package": "com.chinmayeepulupula.printflow"
+      "package": "com.chinmayeepulupula.printflow",
+      "versionCode": 2
     }
   }
 }
