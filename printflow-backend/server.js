@@ -3,7 +3,10 @@ require("dotenv").config();
 const { clerkMiddleware } = require("@clerk/express");
 
 const express = require("express");
-const cors = require("cors");
+app.use(cors({
+    origin: process.env.FRONTEND_ORIGIN || "*",
+    credentials: true
+}));
 
 const http = require('http');
 const { Server } = require('socket.io');
