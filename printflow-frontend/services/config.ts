@@ -1,12 +1,13 @@
 import { Platform } from "react-native";
 
-// NOTE: Expo injects env vars at build time. Avoid Node-only globals.
+const DEPLOYED_BACKEND_URL = "https://printflow-backend-ru3u.onrender.com";
+
+// Expo statically injects EXPO_PUBLIC_* values at build time.
 const env = {
-  // Expo provides env vars at build time. Use safe access without relying on Node types.
-  EXPO_PUBLIC_API_URL: (globalThis as any)?.process?.env?.EXPO_PUBLIC_API_URL,
-  EXPO_PUBLIC_WEB_API_URL: (globalThis as any)?.process?.env?.EXPO_PUBLIC_WEB_API_URL,
-  EXPO_PUBLIC_SOCKET_URL: (globalThis as any)?.process?.env?.EXPO_PUBLIC_SOCKET_URL,
-  EXPO_PUBLIC_WEB_SOCKET_URL: (globalThis as any)?.process?.env?.EXPO_PUBLIC_WEB_SOCKET_URL,
+  EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
+  EXPO_PUBLIC_WEB_API_URL: process.env.EXPO_PUBLIC_WEB_API_URL,
+  EXPO_PUBLIC_SOCKET_URL: process.env.EXPO_PUBLIC_SOCKET_URL,
+  EXPO_PUBLIC_WEB_SOCKET_URL: process.env.EXPO_PUBLIC_WEB_SOCKET_URL,
 };
 
 const apiUrl =
@@ -20,11 +21,11 @@ const socketUrl =
     : env.EXPO_PUBLIC_SOCKET_URL;
 
 export const API_BASE_URL: string =
-  apiUrl || (Platform.OS === "web" ? "http://localhost:5000/api" : "http://192.168.137.1:5000/api");
+  apiUrl || `${DEPLOYED_BACKEND_URL}/api`;
 
 // socket.io attaches to the HTTP server root (no /api)
 export const SOCKET_BASE_URL: string =
-  socketUrl || API_BASE_URL.replace(/\/api\/?$/, "");
+  socketUrl || DEPLOYED_BACKEND_URL;
 
 if ((globalThis as any)?.__DEV__) {
   console.info("[PrintFlow] API_BASE_URL:", API_BASE_URL);

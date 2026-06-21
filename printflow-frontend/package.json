@@ -7,7 +7,10 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "validate:env": "node scripts/validate-env.js",
+    "eas-build-pre-install": "node scripts/validate-env.js"
   },
   "dependencies": {
     "@clerk/clerk-expo": "^2.19.31",

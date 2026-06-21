@@ -11,13 +11,9 @@ import { AuthProvider, useAppAuth } from "../context/AuthContext";
 import { SocketProvider } from "../context/SocketContext";
 import { initPostHog } from "../utils/posthog";
 
-const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
-
-if (!publishableKey) {
-  throw new Error(
-    "Missing Publishable Key. Please set EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in your .env",
-  );
-}
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+const hasPublishableKey =
+  typeof publishableKey === "string" && publishableKey.trim().length > 0;
 
 // -----------------------------------------------------------------------------
 // NAVIGATION GUARD component to handle authentication and onboarding routes
@@ -58,6 +54,42 @@ function NavigationGuard() {
   }, [isSignedIn, isProfileCompleted, isLoadingDbUser, isLoaded, segments]);
 
   return <Stack screenOptions={{ headerShown: false }} />;
+}
+
+function MissingConfigScreen() {
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: "#020617",
+        justifyContent: "center",
+        paddingHorizontal: 24,
+      }}
+    >
+      <Text
+        style={{
+          fontFamily: "SpaceGrotesk_700Bold",
+          fontSize: 26,
+          color: "#F8FAFC",
+          marginBottom: 12,
+        }}
+      >
+        App configuration missing
+      </Text>
+      <Text
+        style={{
+          fontFamily: "Inter_500Medium",
+          fontSize: 15,
+          lineHeight: 22,
+          color: "#CBD5E1",
+        }}
+      >
+        Clerk authentication is not configured for this build. Add
+        EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY to the EAS build environment and
+        rebuild the APK.
+      </Text>
+    </View>
+  );
 }
 
 // -----------------------------------------------------------------------------
@@ -134,6 +166,10 @@ export default function RootLayout() {
 
   if (!fontsLoaded) {
     return null; // Keep native splash visible while loading fonts
+  }
+
+  if (!hasPublishableKey) {
+    return <MissingConfigScreen />;
   }
 
   return (
