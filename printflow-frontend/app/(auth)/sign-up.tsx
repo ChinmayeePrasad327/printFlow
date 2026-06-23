@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, Pressable, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useSignUp } from "@clerk/clerk-expo";
-import { Link, useRouter } from "expo-router";
+import { Link } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { AppInput } from "../../components/AppInput";
@@ -11,7 +11,6 @@ import { trackEvent } from "../../utils/posthog";
 export default function SignUp() {
   const { signUp, setActive, isLoaded } = useSignUp();
   const { tw, colors } = useTheme();
-  const router = useRouter();
 
   const [pendingVerification, setPendingVerification] = useState(false);
   const [firstName, setFirstName] = useState("");
@@ -28,12 +27,10 @@ export default function SignUp() {
       return;
     }
 
-    // Domain validation check
     const emailLower = emailAddress.toLowerCase().trim();
-    const allowedDomains = ["@pvpsit.ac.in", "@siddhartha.edu.in", "@pvpsiddhartha.ac.in"];
-    const isAllowed = allowedDomains.some((domain) => emailLower.endsWith(domain));
-    if (!isAllowed) {
-      setError("Only college email addresses (@pvpsit.ac.in, @siddhartha.edu.in) are allowed.");
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLower);
+    if (!isValidEmail) {
+      setError("Please enter a valid email address, such as name@gmail.com.");
       return;
     }
 
@@ -139,7 +136,7 @@ export default function SignUp() {
                 label="Email"
                 value={emailAddress}
                 onChangeText={setEmailAddress}
-                placeholder="email@college.edu"
+                placeholder="name@gmail.com"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 leftIcon={<Feather name="mail" size={18} color={colors.textSecondary} />}

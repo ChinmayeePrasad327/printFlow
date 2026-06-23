@@ -134,11 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isProfileCompleted = React.useMemo(() => {
     if (!dbUser) return false;
-    // Admins and Operators don't need to complete roll number/department details.
-    if (dbUser.role === "admin" || dbUser.role === "operator") {
-      return true;
-    }
-    return !!(dbUser.rollNo && dbUser.department);
+    return true;
   }, [dbUser]);
 
   return (

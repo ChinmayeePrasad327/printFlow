@@ -52,12 +52,7 @@ export default function Home() {
       if (recData && recData.data) {
         setRecommendations(recData.data);
       } else {
-        // Mock fallback
-        setRecommendations([
-          { printerName: "Library Printer A", eta: 3, queueLength: 1, location: "Library Floor 1", printerType: "bw" },
-          { printerName: "CSE Lab Printer B", eta: 7, queueLength: 3, location: "CSE Block B", printerType: "color" },
-          { printerName: "Admin Block C", eta: 12, queueLength: 5, location: "Ground Floor", printerType: "bw" },
-        ]);
+        setRecommendations([]);
       }
 
       // 2. Fetch stats from orders
@@ -74,30 +69,24 @@ export default function Home() {
           active,
           pending,
           ready,
-          pagesPrinted: pages || 12, // fallback default if 0
+          pagesPrinted: pages,
         });
       } else {
-        // Mock fallback
         setStats({
-          active: 2,
-          pending: 1,
-          ready: 1,
-          pagesPrinted: 48,
+          active: 0,
+          pending: 0,
+          ready: 0,
+          pagesPrinted: 0,
         });
       }
     } catch (e) {
-      console.warn("Failed to fetch dashboard, loading mock data (Demo Mode)", e);
-      // Demo Mode Fallback
-      setRecommendations([
-        { printerName: "Library Printer A", eta: 3, queueLength: 1, location: "Library Floor 1", printerType: "bw" },
-        { printerName: "CSE Lab Printer B", eta: 7, queueLength: 3, location: "CSE Block B", printerType: "color" },
-        { printerName: "Admin Block C", eta: 12, queueLength: 5, location: "Ground Floor", printerType: "bw" },
-      ]);
+      console.warn("Failed to fetch dashboard data", e);
+      setRecommendations([]);
       setStats({
-        active: 2,
-        pending: 1,
-        ready: 1,
-        pagesPrinted: 84,
+        active: 0,
+        pending: 0,
+        ready: 0,
+        pagesPrinted: 0,
       });
     } finally {
       setLoading(false);
@@ -134,7 +123,7 @@ export default function Home() {
             {getGreeting()}
           </Text>
           <Text style={tw("text-2xl font-space-bold text-primary mt-1")}>
-            {dbUser?.name || "Chinmayee"}
+            {dbUser?.name || "User"}
           </Text>
           {dbUser?.role === "student" && dbUser.rollNo && (
             <Text style={tw("text-xs font-inter text-secondary mt-0.5")}>
@@ -248,7 +237,16 @@ export default function Home() {
               </View>
             ) : (
               <View style={tw("gap-4")}>
-                {recommendations.map((printer, index) => (
+                {recommendations.length === 0 ? (
+                  <AppCard style={tw("p-4")}>
+                    <View style={tw("flex-row items-center gap-3")}>
+                      <Feather name="printer" size={18} color={colors.textSecondary} />
+                      <Text style={tw("flex-1 text-xs font-inter text-secondary")}>
+                        No printer recommendations are available right now.
+                      </Text>
+                    </View>
+                  </AppCard>
+                ) : recommendations.map((printer, index) => (
                   <AppCard key={index} style={tw("flex flex-row items-center justify-between p-4")}>
                     <View style={tw("flex-1 mr-3")}>
                       <View style={tw("flex-row items-center gap-2 mb-1")}>

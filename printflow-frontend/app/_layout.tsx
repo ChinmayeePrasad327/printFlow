@@ -51,7 +51,7 @@ function NavigationGuard() {
         router.replace("/(auth)/sign-in");
       }
     }
-  }, [isSignedIn, isProfileCompleted, isLoadingDbUser, isLoaded, segments]);
+  }, [dbUser?.role, isSignedIn, isProfileCompleted, isLoadingDbUser, isLoaded, router, segments]);
 
   return <Stack screenOptions={{ headerShown: false }} />;
 }

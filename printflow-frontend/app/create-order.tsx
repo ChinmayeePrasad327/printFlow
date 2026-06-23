@@ -70,28 +70,22 @@ export default function CreateOrder() {
           setPrinters(onlinePrinters);
           if (onlinePrinters.length > 0) {
             setSelectedPrinterId(onlinePrinters[0]._id);
+          } else {
+            setSelectedPrinterId("");
           }
         } else {
-          loadMockPrinters();
+          setPrinters([]);
+          setSelectedPrinterId("");
         }
       } catch (e) {
-        console.warn("Failed to fetch printers, loading mock printers (Demo Mode)");
-        loadMockPrinters();
+        console.warn("Failed to fetch printers", e);
+        setPrinters([]);
+        setSelectedPrinterId("");
       }
     };
     fetchPrinters();
     trackEvent("screen_viewed", { screenName: "create_order" });
   }, [dbUser?.role]);
-
-  const loadMockPrinters = () => {
-    const mock = [
-      { _id: "p_1", name: "Library Printer A", location: "Library Floor 1", printerType: "bw", status: "online", pagesPerMinute: 15, currentQueueLength: 1 },
-      { _id: "p_2", name: "CSE Lab Printer B", location: "CSE Block B", printerType: "color", status: "online", pagesPerMinute: 12, currentQueueLength: 3 },
-      { _id: "p_3", name: "Admin Block C", location: "Ground Floor", printerType: "bw", status: "online", pagesPerMinute: 20, currentQueueLength: 5 },
-    ] as Printer[];
-    setPrinters(mock);
-    setSelectedPrinterId(mock[0]._id);
-  };
 
   const selectedPrinter = printers.find((p) => p._id === selectedPrinterId);
 
@@ -323,7 +317,7 @@ export default function CreateOrder() {
         <View style={tw("mb-6 gap-3")}>
           {printers.length === 0 ? (
             <Text style={tw("text-xs font-inter text-secondary italic")}>
-              No online printers available. Using Demo mock.
+              No online printers are available right now.
             </Text>
           ) : (
             printers.map((printer) => (

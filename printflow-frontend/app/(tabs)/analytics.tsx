@@ -79,23 +79,23 @@ export default function Analytics() {
     avgWaitTime: 0,
   });
 
-  const loadMockStudentData = () => {
+  const resetStudentStats = () => {
     setStudentStats({
-      totalOrders: 12,
-      totalPages: 74,
-      moneySaved: 74 * 3, // ₹3 saved per page compared to outside
-      activeOrders: 1,
-      treesSaved: parseFloat((74 * 0.0001).toFixed(4)),
+      totalOrders: 0,
+      totalPages: 0,
+      moneySaved: 0,
+      activeOrders: 0,
+      treesSaved: 0,
     });
   };
 
-  const loadMockAdminData = () => {
+  const resetAdminStats = () => {
     setAdminStats({
-      totalUsers: 142,
-      totalOrders: 654,
-      totalRevenue: 1980,
-      activePrinters: 5,
-      avgWaitTime: 6,
+      totalUsers: 0,
+      totalOrders: 0,
+      totalRevenue: 0,
+      activePrinters: 0,
+      avgWaitTime: 0,
     });
   };
 
@@ -113,7 +113,7 @@ export default function Analytics() {
         if (response && response.success && response.data) {
           setAdminStats(response.data);
         } else {
-          loadMockAdminData();
+          resetAdminStats();
         }
       } else {
         const response = await getStudentHistory();
@@ -136,15 +136,15 @@ export default function Analytics() {
             treesSaved: parseFloat((totalPages * 0.0001).toFixed(4)),
           });
         } else {
-          loadMockStudentData();
+          resetStudentStats();
         }
       }
     } catch (e) {
-      console.warn("Failed to fetch analytics, loading mock data (Demo Mode)", e);
+      console.warn("Failed to fetch analytics", e);
       if (dbUser?.role === "admin") {
-        loadMockAdminData();
+        resetAdminStats();
       } else {
-        loadMockStudentData();
+        resetStudentStats();
       }
     } finally {
       setLoading(false);

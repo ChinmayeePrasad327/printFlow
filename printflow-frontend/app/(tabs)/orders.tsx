@@ -34,61 +34,15 @@ export default function Orders() {
       if (response && response.success && response.data) {
         setOrders(response.data);
       } else {
-        // Mock fallback
-        loadMockOrders();
+        setOrders([]);
       }
     } catch (e) {
-      console.warn("Failed to fetch orders, loading mock data (Demo Mode)", e);
-      loadMockOrders();
+      console.warn("Failed to fetch orders", e);
+      setOrders([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
-
-  const loadMockOrders = () => {
-    setOrders([
-      {
-        _id: "order_1",
-        fileName: "CS_301_MachineLearning_Assignment.pdf",
-        status: "pending",
-        queuePosition: 2,
-        eta: 8,
-        estimatedCost: 15.0,
-        printerId: { name: "Library Printer A", location: "Library Floor 1" },
-        createdAt: new Date(Date.now() - 5 * 60000).toISOString(),
-      },
-      {
-        _id: "order_2",
-        fileName: "FinalYearProject_Draft.pdf",
-        status: "printing",
-        queuePosition: 1,
-        eta: 3,
-        estimatedCost: 85.5,
-        printerId: { name: "CSE Lab Printer B", location: "CSE Block B" },
-        createdAt: new Date(Date.now() - 30 * 60000).toISOString(),
-      },
-      {
-        _id: "order_3",
-        fileName: "Hostel_AdmissionForm.pdf",
-        status: "ready",
-        queuePosition: 0,
-        eta: 0,
-        estimatedCost: 10.0,
-        printerId: { name: "Admin Block C", location: "Ground Floor" },
-        createdAt: new Date(Date.now() - 120 * 60000).toISOString(),
-      },
-      {
-        _id: "order_4",
-        fileName: "Resume_Chinmayee.pdf",
-        status: "cancelled",
-        queuePosition: 0,
-        eta: 0,
-        estimatedCost: 5.0,
-        printerId: { name: "Library Printer A", location: "Library Floor 1" },
-        createdAt: new Date(Date.now() - 240 * 60000).toISOString(),
-      },
-    ]);
   };
 
   useEffect(() => {
