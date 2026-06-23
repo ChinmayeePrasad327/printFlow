@@ -18,7 +18,6 @@
     },
     "android": {
       "package": "com.chinmayeepulupula.printflow",
-      "versionCode": 2
     }
   }
 }
