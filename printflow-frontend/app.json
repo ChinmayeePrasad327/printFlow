@@ -3,6 +3,7 @@
     "name": "PrintFlow",
     "slug": "printflow-frontend",
     "scheme": "printflow",
+    "icon": "./assets/icon.png",
     "version": "1.0.1",
     "plugins": [
       "expo-secure-store",
